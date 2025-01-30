@@ -1,7 +1,7 @@
 from hisp.h_transport_class import CustomProblem
 from hisp.helpers import PulsedSource, gaussian_distribution, Stepsize
 from hisp.scenario import Scenario
-from hisp.plamsa_data_handling import PlasmaDataHandling
+from hisp.plasma_data_handling import PlasmaDataHandling
 from hisp.settings import CustomSettings
 import hisp.bin
 

@@ -1,4 +1,4 @@
-from hisp.plamsa_data_handling import PlasmaDataHandling
+from hisp.plasma_data_handling import PlasmaDataHandling
 from hisp.scenario import Scenario
 from hisp.bin import Reactor, SubBin, DivBin
 from hisp.helpers import periodic_step_function
