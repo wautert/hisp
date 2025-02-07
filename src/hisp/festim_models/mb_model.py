@@ -1,5 +1,5 @@
 from hisp.h_transport_class import CustomProblem
-from hisp.helpers import PulsedSource, gaussian_distribution, Stepsize
+from hisp.helpers import PulsedSource, gaussian_distribution, Stepsize, periodic_pulse_function
 from hisp.scenario import Scenario
 from hisp.plasma_data_handling import PlasmaDataHandling
 from hisp.settings import CustomSettings
@@ -26,6 +26,7 @@ def make_W_mb_model(
     final_time: float,
     folder: str,
     L: float,
+    custom_rtol: Union[float, Callable] = 1e-10, # default rtol unless otherwise specified, used for everything but BAKE
     exports=False,
 ) -> Tuple[CustomProblem, Dict[str, F.TotalVolume]]:
     """Create a FESTIM model for the W MB scenario.
@@ -275,7 +276,7 @@ def make_W_mb_model(
     ############# Settings #############
     my_model.settings = F.Settings(
         atol=1e10,
-        rtol=1e-10,
+        rtol=custom_rtol,
         max_iterations=100,  # the first timestep needs about 66 iterations....
         final_time=final_time,
     )
@@ -852,10 +853,16 @@ def make_temperature_function(
         # get the pulse and time relative to the start of the pulse
         pulse = scenario.get_pulse(t)
         t_rel = t - scenario.get_time_start_current_pulse(t)
-
+        
         if pulse.pulse_type == "BAKE":
-            T_bake = 483.15  # K
-            value = np.full_like(x[0], T_bake)
+            T_value = periodic_pulse_function(
+            t_rel,
+            pulse=pulse,
+            value=483.15, # K
+            value_off=343.0, # K
+        )
+            value = np.full_like(x[0], T_value)
+
         else:
             heat_flux = plasma_data_handling.get_heat(pulse, bin, t_rel)
             if (

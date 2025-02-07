@@ -136,6 +136,7 @@ class Model:
         if bin.material == "W":
             return make_W_mb_model(
                 **common_args,
+                custom_rtol=self.bake_rtol,
                 folder=f"mb{parent_bin_index+1}_{bin.mode}_results",
             )
         elif bin.material == "B":
@@ -263,10 +264,22 @@ class Model:
 
     def make_custom_rtol(self, t:float) -> float:
         pulse = self.scenario.get_pulse(t)
+        relative_time = t - self.scenario.get_time_start_current_pulse(t)
         if pulse.pulse_type == "GDC" or pulse.pulse_type == "ICWC":
             rtol = 1e-11
-        elif pulse.pulse_type == "BAKE":
-            rtol = 1e-9
+        elif pulse.pulse_type == "BAKE": 
+            rtol = 1e-13
+        elif pulse.pulse_type == "FP" and relative_time % pulse.total_duration > pulse.duration_no_waiting:
+            rtol = 1e-15
+        else: 
+            rtol = 1e-10
+        return rtol
+    
+    def bake_rtol(self, t:float) -> float:
+        pulse = self.scenario.get_pulse(t)
+        relative_time = t - self.scenario.get_time_start_current_pulse(t)
+        if pulse.pulse_type == "BAKE": 
+            rtol = 1e-12
         else: 
             rtol = 1e-10
         return rtol
