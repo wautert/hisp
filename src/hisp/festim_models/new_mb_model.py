@@ -503,7 +503,6 @@ def make_dynamic_mb_model(
         # Volumetric implantation + zero Dirichlet at surface
         distribution_ion = gaussian_implantation_ufl(ion_range, ion_width, thickness=L)
         distribution_atom = gaussian_implantation_ufl(atom_range, atom_width, thickness=L)
-        k_r0 = getattr(material, "K_R")
         
         my_model.sources = [
             F.ParticleSource(value=lambda x, t: deuterium_ion_flux_reflected(t) * distribution_ion(x), volume=volume_subdomain, species=mobile_D),
@@ -521,6 +520,8 @@ def make_dynamic_mb_model(
         # Use separate weighted ranges for D and T based on their respective flux ratios
         def Gamma_tot(t):
             return float(Gamma_D_total(t)) + float(Gamma_T_total(t))
+        
+        k_r0 = getattr(material, "K_R")
         
 
         def c_sD_time_dependent(t):
