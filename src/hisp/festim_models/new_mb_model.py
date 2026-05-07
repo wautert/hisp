@@ -503,6 +503,7 @@ def make_dynamic_mb_model(
         # Volumetric implantation + zero Dirichlet at surface
         distribution_ion = gaussian_implantation_ufl(ion_range, ion_width, thickness=L)
         distribution_atom = gaussian_implantation_ufl(atom_range, atom_width, thickness=L)
+        k_r0 = getattr(material, "K_R")
         
         my_model.sources = [
             F.ParticleSource(value=lambda x, t: deuterium_ion_flux_reflected(t) * distribution_ion(x), volume=volume_subdomain, species=mobile_D),
@@ -526,14 +527,14 @@ def make_dynamic_mb_model(
             weighted_range_d, _ = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
                 temperature, Gamma_D_total, material.D0, material.E_D, weighted_range_d,
-                flux_tot_fun=Gamma_tot, Kr=material.Kr, surface_x=0.0
+                flux_tot_fun=Gamma_tot, Kr=k_r0, surface_x=0.0
             )(t)
         
         def c_sT_time_dependent(t):
             _, weighted_range_t = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
                 temperature, Gamma_T_total, material.D0, material.E_D, weighted_range_t,
-                flux_tot_fun=Gamma_tot, Kr=material.Kr, surface_x=0.0
+                flux_tot_fun=Gamma_tot, Kr=k_r0, surface_x=0.0
             )(t)
         boundary_conditions.extend([
             F.FixedConcentrationBC(subdomain=inlet, value=c_sD_time_dependent, species="D"),
