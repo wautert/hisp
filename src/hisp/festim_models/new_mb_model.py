@@ -110,7 +110,7 @@ def make_surface_concentration_time_function(
         val = (phi * float(R_p)) / D_T
         if Kr is not None and flux_tot_fun is not None:
             phi_tot = float(flux_tot_fun(t))
-            val += phi / np.sqrt(Kr * phi_tot)
+            val += np.sqrt(phi / Kr)
         return float(val)
     
     return c_S
