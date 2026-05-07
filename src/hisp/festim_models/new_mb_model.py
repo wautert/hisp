@@ -95,22 +95,10 @@ def make_surface_concentration_time_function(
     D0: float,
     E_eV: float,
     R_p: float,
+    flux_tot_fun: Callable = None,
+    Kr: float = None,
     surface_x: float = 0.0
 ) -> Callable[[float], float]:
-    """
-    Create a surface concentration function for Dirichlet BC.
-    
-    Args:
-        T_fun: Temperature function T(x, t) returning temperature in K
-        flux_fun: Flux function returning particle flux in part/m^2/s
-        D0: Diffusivity pre-exponential (m^2/s)
-        E_eV: Diffusion activation energy (eV)
-        R_p: Implantation range (m)
-        surface_x: Surface position (m)
-        
-    Returns:
-        Callable that returns surface concentration (part/m^3) at time t
-    """
     x_surf = np.array([[float(surface_x)]])
     E_J = float(E_eV) * eV_to_J
 
@@ -120,6 +108,9 @@ def make_surface_concentration_time_function(
         phi = float(flux_fun(t))
         D_T = D0 * np.exp(-E_J / (kB_J * T_surf))
         val = (phi * float(R_p)) / D_T
+        if Kr is not None and flux_tot_fun is not None:
+            phi_tot = float(flux_tot_fun(t))
+            val += phi / np.sqrt(Kr * phi_tot)
         return float(val)
     
     return c_S
@@ -527,16 +518,22 @@ def make_dynamic_mb_model(
     elif bc_plasma_facing == "Dirichlet - Analyttical implantation approximation":
         # Use analytical surface concentration approximation (Dirichlet)
         # Use separate weighted ranges for D and T based on their respective flux ratios
+        def Gamma_tot(t):
+            return float(Gamma_D_total(t)) + float(Gamma_T_total(t))
+        
+
         def c_sD_time_dependent(t):
             weighted_range_d, _ = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
-                temperature, Gamma_D_total, material.D0, material.E_D, weighted_range_d, surface_x=0.0
+                temperature, Gamma_D_total, material.D0, material.E_D, weighted_range_d,
+                flux_tot_fun=Gamma_tot, Kr=material.Kr, surface_x=0.0
             )(t)
         
         def c_sT_time_dependent(t):
             _, weighted_range_t = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
-                temperature, Gamma_T_total, material.D0, material.E_D, weighted_range_t, surface_x=0.0
+                temperature, Gamma_T_total, material.D0, material.E_D, weighted_range_t,
+                flux_tot_fun=Gamma_tot, Kr=material.Kr, surface_x=0.0
             )(t)
         boundary_conditions.extend([
             F.FixedConcentrationBC(subdomain=inlet, value=c_sD_time_dependent, species="D"),
