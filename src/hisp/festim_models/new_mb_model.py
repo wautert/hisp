@@ -96,7 +96,8 @@ def make_surface_concentration_time_function(
     E_eV: float,
     R_p: float,
     flux_tot_fun: Callable = None,
-    Kr: float = None,
+    Kr0: float = None,
+    E_Kr: float = None,
     surface_x: float = 0.0
 ) -> Callable[[float], float]:
     x_surf = np.array([[float(surface_x)]])
@@ -106,11 +107,17 @@ def make_surface_concentration_time_function(
         t = float(t)
         T_surf = float(T_fun(x_surf, t)[0])
         phi = float(flux_fun(t))
+        if phi == 0:
+            return 0.0
         D_T = D0 * np.exp(-E_J / (kB_J * T_surf))
         val = (phi * float(R_p)) / D_T
-        if Kr is not None and flux_tot_fun is not None:
+        if Kr0 is not None and flux_tot_fun is not None:
             phi_tot = float(flux_tot_fun(t))
-            val += phi / np.sqrt(Kr * phi_tot)
+            if phi_tot > 0:
+                # Temperature-dependent recombination: Kr(T) = Kr0 * exp(-E_Kr / (kB * T))
+                E_Kr_J = float(E_Kr) * eV_to_J if E_Kr is not None else 0.0
+                Kr_T = Kr0 * np.exp(-E_Kr_J / (kB_J * T_surf))
+                val += phi / np.sqrt(Kr_T * phi_tot)
         return float(val)
     
     return c_S
@@ -522,20 +529,21 @@ def make_dynamic_mb_model(
             return float(Gamma_D_total(t)) + float(Gamma_T_total(t))
         
         k_r0 = getattr(material, "K_R")
+        e_r = getattr(material, "E_R", 0.0)
         
 
         def c_sD_time_dependent(t):
             weighted_range_d, _ = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
                 temperature, Gamma_D_total, material.D0, material.E_D, weighted_range_d,
-                flux_tot_fun=Gamma_tot, Kr=k_r0, surface_x=0.0
+                flux_tot_fun=Gamma_tot, Kr0=k_r0, E_Kr=e_r, surface_x=0.0
             )(t)
         
         def c_sT_time_dependent(t):
             _, weighted_range_t = get_weighted_implantation_ranges(t)
             return make_surface_concentration_time_function(
                 temperature, Gamma_T_total, material.D0, material.E_D, weighted_range_t,
-                flux_tot_fun=Gamma_tot, Kr=k_r0, surface_x=0.0
+                flux_tot_fun=Gamma_tot, Kr0=k_r0, E_Kr=e_r, surface_x=0.0
             )(t)
         boundary_conditions.extend([
             F.FixedConcentrationBC(subdomain=inlet, value=c_sD_time_dependent, species="D"),
