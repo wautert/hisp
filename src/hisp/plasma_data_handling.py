@@ -1,17 +1,15 @@
 """
-Scenario and Pulse are defined in PFC-Tritium-Transport to keep CSV-driven
-scenario definitions in the PFC repository. This module acts as a shim and
-re-exports `Scenario` and `Pulse` from PFC-Tritium-Transport/scenario.py.
+Plasma Data Handling - imported from PFC-Tritium-Transport
 
-The import strategy mirrors `hisp.bin`'s approach: try an env var `PFC_TT_PATH`,
-then try common sibling locations and insert the repo root into `sys.path` so
-we can `from scenario import Scenario, Pulse`.
+This module provides a bridge to import PlasmaDataHandling from PFC-Tritium-Transport.
+All data management logic should be implemented in PFC-Tritium-Transport.
 """
 import os
 import sys
 from pathlib import Path
 
-# Candidate paths where PFC-Tritium-Transport might live
+# Add PFC-Tritium-Transport to path
+# Priority: env var -> sibling of repo roots -> fallback
 candidate_paths = []
 
 # 1) Environment variable override
@@ -22,11 +20,12 @@ if env_path:
 # 2) Common relative locations (when hisp and PFC-TT are sibling folders)
 here = Path(__file__).resolve()
 parents = here.parents
+# Try siblings at different levels depending on layout
 for idx in (3, 4, 5):
     if len(parents) > idx:
         candidate_paths.append(parents[idx] / "PFC-Tritium-Transport")
 
-# De-duplicate while preserving order
+# 3) De-duplicate, keep order
 seen = set()
 unique_candidates = []
 for p in candidate_paths:
@@ -40,21 +39,24 @@ for p in candidate_paths:
 
 resolved_pfc_path = None
 for p in unique_candidates:
-    if (p / "scenario.py").exists():
+    # Check if plasma_data_handling module exists
+    if (p / "plasma_data_handling" / "__init__.py").exists():
         resolved_pfc_path = p
-        sp = str(p)
-        if sp not in sys.path:
-            sys.path.insert(0, sp)
+        if sp := str(p):
+            if sp not in sys.path:
+                sys.path.insert(0, sp)
         break
 
+# Import PlasmaDataHandling from PFC-Tritium-Transport
 try:
-    from scenario import Scenario, Pulse
+    from plasma_data_handling import PlasmaDataHandling
 except ImportError as e:
     tried = ", ".join(str(p) for p in unique_candidates)
     hint = "Set env var PFC_TT_PATH to your PFC-Tritium-Transport folder."
     raise ImportError(
-        "Could not import Scenario/Pulse from PFC-Tritium-Transport. "
+        "Could not import PlasmaDataHandling from PFC-Tritium-Transport. "
         f"Tried: {tried}. {hint} Error: {e}"
     )
 
-__all__ = ["Scenario", "Pulse"]
+# Re-export for backwards compatibility
+__all__ = ['PlasmaDataHandling']
